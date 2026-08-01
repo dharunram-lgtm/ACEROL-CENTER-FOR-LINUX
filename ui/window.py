@@ -66,7 +66,10 @@ class MainWindow(Gtk.ApplicationWindow):
             self.rgb_controller, self,
             initial_color=settings.rgb_color(),
             initial_brightness=settings.rgb_brightness(),
-            on_changed=self._on_rgb_changed)
+            initial_effect=settings.rgb_effect(),
+            initial_speed=settings.rgb_breathing_speed(),
+            on_changed=self._on_rgb_changed,
+            on_effect_changed=self._on_rgb_effect_changed)
         self.gpu_page = GPUPage(self.gpu_controller, self,
                                 on_switched=self._on_gpu_switched)
         self.gpu_controller.set_switch_callback(self.gpu_page._on_switch_result)
@@ -122,6 +125,10 @@ class MainWindow(Gtk.ApplicationWindow):
     def _on_rgb_changed(self, color: str, brightness: int) -> None:
         self._settings.set_many({"rgb_color": color, "rgb_brightness": brightness})
 
+    def _on_rgb_effect_changed(self, effect: str, speed: int) -> None:
+        self._settings.set_many({"rgb_effect": effect,
+                                 "rgb_breathing_speed": speed})
+
     def _on_interval_changed(self, interval: int) -> None:
         self._settings.set("refresh_interval", interval)
         self.battery_page.set_interval(interval)
@@ -139,6 +146,7 @@ class MainWindow(Gtk.ApplicationWindow):
     # ------------------------------------------------------------------
 
     def _on_delete_event(self, _widget: Gtk.Widget, _event) -> bool:
+        self.rgb_page.effects.stop_all()
         self._save_size()
         self._settings.set("last_page", self._stack.get_visible_child_name())
         return False

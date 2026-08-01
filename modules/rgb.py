@@ -93,14 +93,10 @@ class RGBController:
             return
 
         brightness = max(RGB_BRIGHTNESS_MIN, min(brightness, RGB_BRIGHTNESS_MAX))
-        args = [RGB_COMMAND, color, str(brightness)]
 
         def _worker() -> str:
-            process = run_command(args, timeout=10.0, check=False)
-            if process.returncode == 0:
-                return ""
-            error = (process.stderr or process.stdout or "").strip()
-            return error or f"{RGB_COMMAND} failed with exit code {process.returncode}"
+            ok, message = self.apply_now(color, brightness)
+            return "" if ok else message
 
         def _done(message: str) -> None:
             if not message:
@@ -111,6 +107,44 @@ class RGBController:
                 self._report(callback, False, self._friendly_error(message))
 
         run_async(_worker, on_done=_done, on_error=self._on_error(callback))
+
+    def apply_now(self, color: str, brightness: int) -> "tuple[bool, str]":
+        """Apply a colour synchronously, returning the outcome.
+
+        This blocks until ``alg-rgb`` exits, so it must only be called from a
+        worker thread (the effects manager uses it inside the breathing
+        loop).  It never raises.
+
+        Parameters
+        ----------
+        color : str
+            Colour name from :data:`config.RGB_COLORS`.
+        brightness : int
+            Brightness between ``RGB_BRIGHTNESS_MIN`` and
+            ``RGB_BRIGHTNESS_MAX``.
+
+        Returns
+        -------
+        tuple[bool, str]
+            ``(ok, message)`` where ``message`` is empty on success and a
+            human readable reason on failure.
+        """
+        if not self.is_available():
+            return False, "RGB driver not installed."
+        if color not in RGB_COLORS:
+            return False, f"Unknown colour: {color}"
+
+        brightness = max(RGB_BRIGHTNESS_MIN, min(brightness, RGB_BRIGHTNESS_MAX))
+        try:
+            process = run_command([RGB_COMMAND, color, str(brightness)],
+                                  timeout=10.0, check=False)
+        except (OSError, utils.subprocess.TimeoutExpired) as exc:
+            return False, str(exc)
+        if process.returncode == 0:
+            return True, ""
+        error = (process.stderr or process.stdout or "").strip()
+        return False, error or (f"{RGB_COMMAND} failed with exit code "
+                                f"{process.returncode}")
 
     def preview_hex(self, color: str) -> str:
         """Return the hexadecimal value of ``color``.

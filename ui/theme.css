@@ -241,6 +241,45 @@ button:disabled {
     border: 2px solid #444444;
 }
 
+/* Lighting effect segmented buttons */
+
+.effect-button {
+    background-color: #2A2A2A;
+    color: #D6D6D6;
+    border: 1px solid #3A3A3A;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 13px;
+    box-shadow: none;
+}
+
+.effect-button:hover {
+    background-color: #333333;
+}
+
+.effect-button:checked,
+.effect-button.effect-active {
+    background-color: #2ECC71;
+    color: #0F1A12;
+    font-weight: bold;
+    border-color: #2ECC71;
+}
+
+/* Live keyboard preview */
+
+.keyboard-bar {
+    background-color: #1C1C1C;
+    border: 1px solid #2A2A2A;
+    border-radius: 12px;
+    padding: 14px;
+}
+
+.key-block {
+    background-color: #3A3A3A;
+    border-radius: 6px;
+    min-height: 28px;
+}
+
 .scale-slider-dark {
     /* decorative class; Gtk.Scale is styled below */
 }

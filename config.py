@@ -67,6 +67,30 @@ RGB_BRIGHTNESS_MAX: int = 4
 RGB_BRIGHTNESS_DEFAULT: int = 4
 
 # ---------------------------------------------------------------------------
+# Keyboard lighting effects
+# ---------------------------------------------------------------------------
+
+#: ``effect id -> (label, supported)``.  Unsupported entries are shown
+#: disabled in the UI; adding a new effect only requires a new entry here and
+#: a matching branch in :mod:`modules.effects`.
+RGB_EFFECTS: Dict[str, Dict[str, object]] = {
+    "static": {"label": "Static", "supported": True},
+    "breathing": {"label": "Breathing", "supported": True},
+    "color-cycle": {"label": "Color Cycle", "supported": False},
+    "rainbow": {"label": "Rainbow", "supported": False},
+    "wave": {"label": "Wave", "supported": False},
+}
+RGB_EFFECT_DEFAULT: str = "static"
+
+#: Tooltip shown on effects that are not implemented yet.
+RGB_EFFECT_UNSUPPORTED_TOOLTIP: str = "Not supported yet"
+
+#: Breathing speed range (1 = slow ... 5 = fast).
+RGB_SPEED_MIN: int = 1
+RGB_SPEED_MAX: int = 5
+RGB_SPEED_DEFAULT: int = 3
+
+# ---------------------------------------------------------------------------
 # GPU switching (system76-power)
 # ---------------------------------------------------------------------------
 

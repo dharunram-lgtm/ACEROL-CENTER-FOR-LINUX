@@ -55,6 +55,8 @@ class Settings:
         "window_height": 720,
         "rgb_color": "green",
         "rgb_brightness": 4,
+        "rgb_effect": "static",
+        "rgb_breathing_speed": 3,
         "last_page": "rgb",
         "refresh_interval": 2,
         "theme": "dark",
@@ -205,6 +207,14 @@ class Settings:
     def rgb_brightness(self) -> int:
         """Return the last selected RGB brightness (0-4)."""
         return self.get_int("rgb_brightness", 4)
+
+    def rgb_effect(self) -> str:
+        """Return the last selected lighting effect id."""
+        return str(self.get("rgb_effect", "static"))
+
+    def rgb_breathing_speed(self) -> int:
+        """Return the last selected breathing speed (1-5)."""
+        return self.get_int("rgb_breathing_speed", 3)
 
     def last_page(self) -> str:
         """Return the last visible page name."""

@@ -1,21 +1,21 @@
-"""Modal dialogs used across the application.
+"""Modal and non-blocking dialogs used across the application.
 
 * :func:`show_message` - informational message box.
 * :func:`show_error` - error box (used when backends are missing).
+* :func:`show_warning` - warning box.
 * :func:`confirm` - yes/no confirmation that runs a callback on the main
   thread without blocking the event loop.
-
-All dialogs are parented to the main window and styled via the shared theme.
+* :func:`notify` - non-blocking notification that auto-dismisses.
 """
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Optional
 
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa: E402
+from gi.repository import GLib, Gtk  # noqa: E402
 
 #: Response callback signature: ``callback(confirmed: bool)``.
 ConfirmCallback = Callable[[bool], None]
@@ -114,6 +114,56 @@ def show_warning(parent: Gtk.Window, title: str, message: str) -> Gtk.MessageDia
         The dialog handle.
     """
     return _make_dialog(parent, title, message, Gtk.MessageType.WARNING)
+
+
+def notify(parent: Optional[Gtk.Window], title: str, message: str,
+           kind: Gtk.MessageType = Gtk.MessageType.WARNING,
+           timeout_ms: int = 4000) -> Gtk.MessageDialog:
+    """Show a non-blocking notification that auto-dismisses.
+
+    The dialog does not grab focus, does not run a nested event loop and
+    closes itself after ``timeout_ms`` (or when the user clicks it).
+
+    Parameters
+    ----------
+    parent : Optional[Gtk.Window]
+        Transient parent window (may be ``None``).
+    title : str
+        Notification title.
+    message : str
+        Secondary text.
+    kind : Gtk.MessageType
+        Message severity/icon.
+    timeout_ms : int
+        Milliseconds before the dialog closes itself.
+
+    Returns
+    -------
+    Gtk.MessageDialog
+        The dialog handle.
+    """
+    dialog = Gtk.MessageDialog(
+        transient_for=parent,
+        modal=False,
+        destroy_with_parent=True,
+        message_type=kind,
+        buttons=Gtk.ButtonsType.NONE,
+        text=title,
+    )
+    dialog.format_secondary_text(message)
+    dialog.get_style_context().add_class("app-dialog")
+
+    ok_button = dialog.add_button("OK", Gtk.ResponseType.CLOSE)
+    ok_button.get_style_context().add_class("flat")
+    dialog.connect("response", lambda *_: dialog.destroy())
+    dialog.show()
+
+    def _auto_close() -> bool:
+        dialog.destroy()
+        return False
+
+    GLib.timeout_add(max(500, timeout_ms), _auto_close)
+    return dialog
 
 
 def confirm(parent: Gtk.Window, title: str, message: str,

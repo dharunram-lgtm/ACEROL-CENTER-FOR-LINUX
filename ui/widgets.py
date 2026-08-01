@@ -272,3 +272,28 @@ def apply_classes(widget: Gtk.Widget, *classes: str) -> None:
     for css in classes:
         if not context.has_class(css):
             context.add_class(css)
+
+
+def style_with_css(widget: Gtk.Widget, css_rule: str) -> None:
+    """Replace a widget's dynamic CSS provider with ``css_rule``.
+
+    Each widget keeps at most one dynamic provider: the previous rule is
+    removed before the new one is applied, so the visual state is fully
+    replaced instead of layered.
+
+    Parameters
+    ----------
+    widget : Gtk.Widget
+        Target widget whose style context receives the provider.
+    css_rule : str
+        Complete CSS rule(s), e.g. ``".rgb-preview { background-color: red; }"``.
+    """
+    context = widget.get_style_context()
+    provider = getattr(widget, "_dynamic_provider", None)
+    if provider is not None:
+        context.remove_provider(provider)
+
+    provider = Gtk.CssProvider()
+    provider.load_from_data(css_rule.encode("utf-8"))
+    context.add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+    widget._dynamic_provider = provider
