@@ -1,0 +1,7 @@
+# PyGObject — the GTK3 Python bindings (all Debian-based distros ship this).
+# Installation: sudo apt install python3-gi gir1.2-gtk-3.0
+PyGObject>=3.38
+
+# Optional: enables the bundled keyboard driver at scripts/alg-rgb.
+# Installation: sudo pip install hid
+#hid>=1.0.4

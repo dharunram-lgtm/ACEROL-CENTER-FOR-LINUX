@@ -1,0 +1,396 @@
+/* Acer ALG Control Center — dark theme.
+ * Palette:
+ *   background #161616   cards #222222   accent #3BA55D
+ *   primary #2ECC71      text #F2F2F2    secondary #9AA0A6
+ * Professional, GNOME-Settings-like. No purple, no gradients, no glass.
+ */
+
+window.app-window {
+    background-color: #161616;
+    color: #F2F2F2;
+}
+
+.app-dialog {
+    background-color: #1C1C1C;
+    color: #F2F2F2;
+}
+
+/* ---------------------------------------------------------------------
+ * Sidebar
+ * ------------------------------------------------------------------- */
+
+.sidebar {
+    background-color: #121212;
+    border-right: 1px solid #2A2A2A;
+}
+
+.sidebar-header {
+    padding: 24px 16px 20px 16px;
+    border-bottom: 1px solid #2A2A2A;
+}
+
+.sidebar-title {
+    font-size: 15px;
+    font-weight: bold;
+    color: #F2F2F2;
+}
+
+.sidebar-subtitle {
+    font-size: 12px;
+    color: #9AA0A6;
+}
+
+.sidebar-list {
+    background-color: transparent;
+}
+
+.sidebar-item {
+    background-color: transparent;
+    border-radius: 10px;
+    margin: 4px 10px;
+    padding: 2px;
+}
+
+.sidebar-item:hover {
+    background-color: #262626;
+}
+
+.sidebar-item:selected,
+.sidebar-item:active,
+.sidebar-item:focus {
+    background-color: #2ECC71;
+    border-radius: 10px;
+}
+
+.sidebar-item:selected .sidebar-item-label,
+.sidebar-item:active .sidebar-item-label,
+.sidebar-item:focus .sidebar-item-label {
+    color: #0F1A12;
+    font-weight: bold;
+}
+
+.sidebar-item-label {
+    font-size: 14px;
+    color: #D6D6D6;
+}
+
+/* ---------------------------------------------------------------------
+ * Page layout
+ * ------------------------------------------------------------------- */
+
+.page-content {
+    background-color: #161616;
+}
+
+.page-body {
+    padding: 28px 32px;
+}
+
+.page-icon {
+    opacity: 0.85;
+}
+
+.page-title {
+    font-size: 22px;
+    font-weight: bold;
+    color: #F2F2F2;
+}
+
+.page-subtitle {
+    font-size: 13px;
+    color: #9AA0A6;
+}
+
+/* ---------------------------------------------------------------------
+ * Cards
+ * ------------------------------------------------------------------- */
+
+.card {
+    background-color: #222222;
+    border-radius: 16px;
+    border: 1px solid #2A2A2A;
+    padding: 18px;
+    margin: 4px;
+}
+
+.card-title {
+    font-size: 13px;
+    font-weight: bold;
+    color: #9AA0A6;
+    letter-spacing: 0.4px;
+}
+
+.card-big-value {
+    font-size: 40px;
+    font-weight: bold;
+    color: #F2F2F2;
+}
+
+.card-caption {
+    font-size: 12px;
+    color: #9AA0A6;
+}
+
+.metric-label {
+    font-size: 13px;
+    color: #B8B8B8;
+}
+
+.metric-value {
+    font-size: 13px;
+    font-weight: bold;
+    color: #F2F2F2;
+}
+
+/* Temperature colour states */
+
+.temp-green {
+    color: #2ECC71;
+}
+
+.temp-orange {
+    color: #F5A623;
+}
+
+.temp-red {
+    color: #E74C3C;
+}
+
+.temp-none {
+    color: #9AA0A6;
+}
+
+/* ---------------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------------- */
+
+button.flat {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 8px;
+    color: #D6D6D6;
+}
+
+button.flat:hover {
+    background-color: #2A2A2A;
+}
+
+button.primary-button {
+    background-color: #2ECC71;
+    color: #0F1A12;
+    font-weight: bold;
+    border: none;
+    border-radius: 10px;
+    padding: 6px 16px;
+}
+
+button.primary-button:hover {
+    background-color: #35D97C;
+}
+
+button.secondary-button {
+    background-color: #2A2A2A;
+    color: #F2F2F2;
+    border: 1px solid #3A3A3A;
+    border-radius: 10px;
+    padding: 6px 16px;
+}
+
+button.secondary-button:hover {
+    background-color: #333333;
+}
+
+button:disabled {
+    opacity: 0.5;
+}
+
+/* ---------------------------------------------------------------------
+ * RGB page
+ * ------------------------------------------------------------------- */
+
+.color-button {
+    border-radius: 50%;
+    border: 3px solid #333333;
+    min-width: 46px;
+    min-height: 46px;
+    padding: 0;
+    box-shadow: none;
+}
+
+.color-button:hover {
+    border-color: #555555;
+}
+
+.color-button:active,
+.color-button:selected {
+    border-color: #2ECC71;
+    box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.25);
+}
+
+.rgb-preview {
+    border-radius: 14px;
+    border: 1px solid #333333;
+    min-height: 96px;
+}
+
+.color-indicator-dot {
+    border-radius: 50%;
+    min-width: 18px;
+    min-height: 18px;
+    border: 2px solid #444444;
+}
+
+.scale-slider-dark {
+    /* decorative class; Gtk.Scale is styled below */
+}
+
+scale trough {
+    background-color: #333333;
+    border-radius: 6px;
+    min-height: 8px;
+}
+
+scale highlight {
+    background-color: #2ECC71;
+    border-radius: 6px;
+    min-height: 8px;
+}
+
+scale slider {
+    background-color: #F2F2F2;
+    border-radius: 50%;
+    min-width: 18px;
+    min-height: 18px;
+}
+
+/* ---------------------------------------------------------------------
+ * GPU page
+ * ------------------------------------------------------------------- */
+
+.mode-card {
+    background-color: #222222;
+    border-radius: 16px;
+    border: 2px solid #2E2E2E;
+    padding: 22px;
+}
+
+.mode-card:hover {
+    border-color: #3BA55D;
+    background-color: #262626;
+}
+
+.mode-card:selected {
+    border-color: #2ECC71;
+    background-color: #1E2B23;
+}
+
+.mode-card:selected .mode-title {
+    color: #2ECC71;
+}
+
+.mode-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #F2F2F2;
+}
+
+.mode-subtitle {
+    font-size: 12px;
+    color: #9AA0A6;
+}
+
+.mode-badge {
+    background-color: #2ECC71;
+    color: #0F1A12;
+    font-weight: bold;
+    font-size: 11px;
+    border-radius: 20px;
+    padding: 3px 10px;
+}
+
+/* ---------------------------------------------------------------------
+ * Battery page
+ * ------------------------------------------------------------------- */
+
+.battery-progress trough {
+    background-color: #333333;
+    border-radius: 8px;
+    min-height: 18px;
+}
+
+.battery-progress progress {
+    background-color: #2ECC71;
+    border-radius: 8px;
+}
+
+.battery-icon {
+    opacity: 0.9;
+}
+
+/* ---------------------------------------------------------------------
+ * Status labels
+ * ------------------------------------------------------------------- */
+
+.status-ok {
+    color: #2ECC71;
+}
+
+.status-warning {
+    color: #F5A623;
+}
+
+.status-error {
+    color: #E74C3C;
+}
+
+.status-muted {
+    color: #9AA0A6;
+}
+
+/* ---------------------------------------------------------------------
+ * About page
+ * ------------------------------------------------------------------- */
+
+.about-logo {
+    border-radius: 18px;
+}
+
+.about-name {
+    font-size: 24px;
+    font-weight: bold;
+    color: #F2F2F2;
+}
+
+.about-sub {
+    font-size: 13px;
+    color: #9AA0A6;
+}
+
+.link-button {
+    background-color: #2A2A2A;
+    border-radius: 10px;
+    border: 1px solid #3A3A3A;
+    color: #2ECC71;
+    font-weight: bold;
+}
+
+.link-button:hover {
+    background-color: #333333;
+}
+
+/* Scrollbar */
+scrollbar trough {
+    background-color: transparent;
+}
+
+scrollbar slider {
+    background-color: #3A3A3A;
+    border-radius: 8px;
+    min-width: 8px;
+}
+
+selection {
+    background-color: #2ECC71;
+    color: #0F1A12;
+}

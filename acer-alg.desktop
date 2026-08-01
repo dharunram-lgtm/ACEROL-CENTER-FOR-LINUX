@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Acer ALG Control Center
+GenericName=Control Center
+Comment=Control keyboard RGB, GPU mode, hardware telemetry and battery for Acer ALG laptops
+Exec=/usr/bin/acer-alg-control-center
+Icon=acer-alg-control-center
+Terminal=false
+Categories=System;Settings;HardwareSettings;
+Keywords=Acer;ALG;RGB;GPU;Battery;Fans;
+StartupNotify=true

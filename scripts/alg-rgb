@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+"""alg-rgb — keyboard backlight driver for Acer ALG / Nitro laptops.
+
+Sends a colour and brightness to the keyboard RGB controller over USB HID.
+
+Usage
+-----
+    alg-rgb <color> <brightness>
+
+``<color>`` is one of: red, orange, yellow, green, cyan, blue, violet,
+magenta, pink, white, off.
+``<brightness>`` is an integer from 0 (dim) to 4 (brightest).
+
+Requires the ``hid`` python module (``pip install hid``) and a working
+``hidapi`` library.  If the module is missing a clear error is printed and
+the tool exits with code 1 — the Control Center handles this gracefully and
+shows "RGB driver not installed."
+
+The HID report follows the protocol reverse engineered by the Acer RGB
+community (see github.com/NyanBlade/alg-rgb).
+"""
+
+from __future__ import annotations
+
+import sys
+from typing import Dict, List, Optional, Tuple
+
+#: Vendor / product ids known to use this protocol.
+DEVICE_IDS: List[Tuple[int, int]] = [
+    (0x2B6A, 0xA543),   # Acer ALG
+    (0x2B6A, 0xA4A9),   # Acer Nitro 5 (AN515-54)
+    (0x2B6A, 0xA4A8),   # Acer Nitro 5 (AN515-55)
+]
+
+COLORS: Dict[str, int] = {
+    "red": 0xFF0000,
+    "orange": 0xFFA500,
+    "yellow": 0xFFFF00,
+    "green": 0x00FF00,
+    "cyan": 0x00FFFF,
+    "blue": 0x0000FF,
+    "violet": 0x8F00FF,
+    "magenta": 0xFF00FF,
+    "pink": 0xFF69B4,
+    "white": 0xFFFFFF,
+    "off": 0x000000,
+}
+
+
+class AcerRGB:
+    """Minimal HID wrapper around the keyboard lighting device."""
+
+    def __init__(self) -> None:
+        import hid  # deferred so ``--help`` works without the dependency
+
+        self._hid = hid
+        self._device = None
+        self.color: int = 0x000000
+        self.brightness: int = 4
+
+    # ------------------------------------------------------------------
+
+    def find_device(self) -> Optional[Tuple[int, int]]:
+        """Locate the first known RGB keyboard device.
+
+        Returns
+        -------
+        Optional[Tuple[int, int]]
+            ``(vendor_id, product_id)`` or ``None`` when nothing matches.
+        """
+        for vid, pid in DEVICE_IDS:
+            for info in self._hid.enumerate(vid, pid):
+                if info.get("usage_page") == 0xFF00 or "keyboard" in str(
+                        info.get("product_string", "")).lower():
+                    return vid, pid
+        return None
+
+    def open(self, vid: int, pid: int) -> None:
+        """Open the device for output.
+
+        Parameters
+        ----------
+        vid : int
+            USB vendor id.
+        pid : int
+            USB product id.
+        """
+        self._device = self._hid.device()
+        self._device.open(vid, pid)
+        self._device.set_nonblocking(True)
+
+    def send(self) -> None:
+        """Write the current colour/brightness report to the device."""
+        if self._device is None:
+            raise RuntimeError("device not open")
+        payload = bytes([
+            0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
+            (self.color >> 16) & 0xFF,   # red
+            (self.color >> 8) & 0xFF,    # green
+            self.color & 0xFF,           # blue
+            0x00,
+            max(0, min(self.brightness, 4)),
+            0x02, 0x00,
+        ])
+        self._device.write(payload)
+
+    def close(self) -> None:
+        """Release the USB device."""
+        if self._device is not None:
+            try:
+                self._device.close()
+            except Exception:  # noqa: BLE001 - best effort close
+                pass
+            self._device = None
+
+
+def parse_args(argv: List[str]) -> Tuple[str, int]:
+    """Validate command line arguments.
+
+    Parameters
+    ----------
+    argv : List[str]
+        Arguments after the program name.
+
+    Returns
+    -------
+    Tuple[str, int]
+        ``(color_name, brightness)``.
+
+    Raises
+    ------
+    SystemExit
+        With a usage message when the arguments are invalid.
+    """
+    if len(argv) != 2 or argv[0] in ("-h", "--help"):
+        print(__doc__.split("Requires the")[0], file=sys.stderr)
+        sys.exit(0 if argv and argv[0] in ("-h", "--help") else 1)
+
+    color, raw_brightness = argv
+    if color not in COLORS:
+        print(f"error: unknown color '{color}'", file=sys.stderr)
+        print("valid colors: " + ", ".join(COLORS), file=sys.stderr)
+        sys.exit(1)
+    try:
+        brightness = int(raw_brightness)
+    except ValueError:
+        print(f"error: brightness must be an integer, got '{raw_brightness}'",
+              file=sys.stderr)
+        sys.exit(1)
+    if not 0 <= brightness <= 4:
+        print("error: brightness must be between 0 and 4", file=sys.stderr)
+        sys.exit(1)
+    return color, brightness
+
+
+def main(argv: List[str]) -> int:
+    """CLI entry point.
+
+    Parameters
+    ----------
+    argv : List[str]
+        Full argument list including the program name.
+
+    Returns
+    -------
+    int
+        Process exit code.
+    """
+    try:
+        color, brightness = parse_args(argv[1:])
+        controller = AcerRGB()
+    except ImportError:
+        print("error: the 'hid' python module is not installed.", file=sys.stderr)
+        print("run: sudo apt install python3-pip && "
+              "sudo pip install hid", file=sys.stderr)
+        return 1
+
+    try:
+        device = controller.find_device()
+        if device is None:
+            print("error: no compatible Acer RGB keyboard found.", file=sys.stderr)
+            return 1
+        controller.open(*device)
+        controller.color = COLORS[color]
+        controller.brightness = brightness
+        controller.send()
+        print(f"Set keyboard to {color} at brightness {brightness}.")
+        return 0
+    except Exception as exc:  # noqa: BLE001 - report every failure cleanly
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        controller.close()
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
