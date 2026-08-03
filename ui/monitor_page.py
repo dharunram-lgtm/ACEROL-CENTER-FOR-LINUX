@@ -1,7 +1,7 @@
 """Hardware monitor page.
 
-Shows live CPU temperature and, when an NVIDIA GPU is present, a detailed
-GPU card (temperature, usage, VRAM, power, clocks, driver and PCI bus).
+Shows live CPU temperature, fan speeds and, when an NVIDIA GPU is present, a
+detailed GPU card (temperature, usage, VRAM, power, clocks, driver and PCI bus).
 
 Telemetry is collected on a background thread (never on the GTK main loop)
 every ``refresh_interval`` seconds through a ``GLib.timeout_add_seconds``
@@ -26,6 +26,8 @@ from ui.widgets import (MetricRow, PageTitle, make_card, make_heading,
                         make_metric_row)
 
 logger = get_logger(__name__)
+
+from config import FAN_UNAVAILABLE_MSG  # noqa: E402  (import order)
 
 
 class MonitorPage(Gtk.Box):
@@ -58,16 +60,20 @@ class MonitorPage(Gtk.Box):
         header_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
         header_row.pack_start(
             PageTitle("Hardware",
-                      "Live CPU and GPU telemetry, refreshed automatically.",
+                      "Live CPU, fan and GPU telemetry, refreshed automatically.",
                       "utilities-system-monitor"),
             True, True, 0)
         header_row.pack_start(self._build_interval_selector(), False, False, 0)
         body.pack_start(header_row, False, False, 0)
 
-        cards = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
-        cards.pack_start(self._build_cpu_card(), True, True, 0)
-        cards.pack_start(self._build_gpu_card(), True, True, 0)
-        body.pack_start(cards, True, True, 0)
+        self._cards_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+        self._cpu_card = self._build_cpu_card()
+        self._fan_card = self._build_fan_card()
+        self._gpu_card = self._build_gpu_card()
+        self._cards_box.pack_start(self._cpu_card, True, True, 0)
+        self._cards_box.pack_start(self._fan_card, True, True, 0)
+        self._cards_box.pack_start(self._gpu_card, True, True, 0)
+        body.pack_start(self._cards_box, True, True, 0)
 
         self._status = Gtk.Label(label="", xalign=0.0)
         self._status.get_style_context().add_class("status-muted")
@@ -138,6 +144,30 @@ class MonitorPage(Gtk.Box):
         card.add(make_metric_row("Package temperature", "—"))
         return card
 
+    def _build_fan_card(self) -> Gtk.EventBox:
+        card = make_card(vertical=True, spacing=8, style_class="card fan-card")
+        card.add(make_heading("Fan"))
+
+        self._fan_placeholder = Gtk.Label(
+            label=FAN_UNAVAILABLE_MSG, xalign=0.0, wrap=True, justify=Gtk.Justification.LEFT)
+        self._fan_placeholder.get_style_context().add_class("status-muted")
+        card.add(self._fan_placeholder)
+
+        self._fan_name = Gtk.Label(label="", xalign=0.0, wrap=True)
+        self._fan_name.get_style_context().add_class("card-caption")
+        card.add(self._fan_name)
+
+        self._fan_rpm = Gtk.Label(label="—", xalign=0.0)
+        self._fan_rpm.get_style_context().add_class("card-big-value")
+        card.add(self._fan_rpm)
+
+        self._fan_rows: Dict[str, MetricRow] = {}
+        for key, label in (("system", "System Fan"),
+                           ("gpu", "GPU Fan")):
+            self._fan_rows[key] = make_metric_row(label)
+            card.add(self._fan_rows[key])
+        return card
+
     def _build_gpu_card(self) -> Gtk.EventBox:
         card = make_card(vertical=True, spacing=8, style_class="card gpu-card")
         card.add(make_heading("GPU"))
@@ -185,6 +215,9 @@ class MonitorPage(Gtk.Box):
     def _on_data(self, data: Dict[str, Optional[dict]]) -> None:
         self._polling = False
         self._update_cpu(data.get("cpu") or {})
+        fan = data.get("fan")
+        if isinstance(fan, dict):
+            self._update_fan(fan)
         self._update_gpu(data.get("gpu"))
 
     def _update_cpu(self, cpu: dict) -> None:
@@ -216,6 +249,43 @@ class MonitorPage(Gtk.Box):
         self._set_row_value("driver", gpu.get("driver") or "N/A")
         self._set_row_value("bus", gpu.get("bus") or "N/A")
 
+    def _update_fan(self, fan: dict) -> None:
+        system = fan.get("system")
+        gpu_fan = fan.get("gpu")
+        has_fan = system is not None or gpu_fan is not None
+        has_error = fan.get("error") is not None
+
+        if not has_fan and has_error:
+            self._fan_placeholder.set_text(fan["error"])
+
+        self._fan_placeholder.set_visible(not has_fan)
+        self._fan_name.set_visible(has_fan)
+        self._fan_rpm.set_visible(has_fan)
+        for row in self._fan_rows.values():
+            row.set_visible(has_fan)
+
+        if not has_fan:
+            self._fan_name.set_text("")
+            self._fan_rpm.set_text("—")
+            return
+
+        labels = []
+        if system is not None:
+            labels.append(system.get("label", "System Fan"))
+        if gpu_fan is not None:
+            labels.append(gpu_fan.get("label", "GPU Fan"))
+        self._fan_name.set_text(" / ".join(labels))
+
+        rpm_values = []
+        if system is not None and system.get("rpm") is not None:
+            rpm_values.append(str(system["rpm"]))
+        if gpu_fan is not None and gpu_fan.get("rpm") is not None:
+            rpm_values.append(str(gpu_fan["rpm"]))
+        self._fan_rpm.set_text(" RPM, ".join(rpm_values) + " RPM" if rpm_values else "—")
+
+        self._set_fan_row("system", self._format_rpm(system))
+        self._set_fan_row("gpu", self._format_rpm(gpu_fan))
+
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
@@ -239,6 +309,17 @@ class MonitorPage(Gtk.Box):
         row = self._gpu_rows.get(key)
         if row is not None:
             row.set_value(value)
+
+    def _set_fan_row(self, key: str, value: str) -> None:
+        row = self._fan_rows.get(key)
+        if row is not None:
+            row.set_value(value)
+
+    @staticmethod
+    def _format_rpm(fan: Optional[dict]) -> str:
+        if fan is None or fan.get("rpm") is None:
+            return "N/A"
+        return f"{fan['rpm']} RPM"
 
     @staticmethod
     def _percent(value: Optional[float]) -> str:

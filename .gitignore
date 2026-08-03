@@ -13,3 +13,7 @@ dist/
 
 # Local settings / runtime
 settings.json
+
+# Local-only (contains local credentials / AI tooling)
+AGENTS.md
+.kilo/

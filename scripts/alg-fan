@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+"""alg-fan — read CPU / GPU fan RPM from the Embedded Controller (EC).
+
+Reads raw fan speed values from the Acer ALG / Nitro EC debug interface and
+prints them as human-readable RPM figures.
+
+The EC register map is taken from the firmware (DSDT) of the Acer ALG AL15G-53
+and the ``acer-ec`` community driver: the EC stores a raw tachometer period
+per fan and the real RPM is ``60,000,000 / raw``.
+
+Usage
+-----
+    alg-fan
+
+No arguments are required.  The tool tries, in order:
+
+1. ``/sys/kernel/debug/ec/ec0/io`` (requires the ``ec_sys`` kernel module,
+   loaded with ``sudo modprobe ec_sys write_support=1``).  CPU fan is a
+   little-endian 16-bit tachometer period at EC offset ``0xD0``; the GPU fan
+   is at offset ``0xD2``.  RPM is ``60000000 / raw``.
+2. ``/sys/class/hwmon/hwmon*/fan*_input`` as a fallback when the EC debug
+   interface is not available.
+
+Exit codes
+----------
+* ``0`` — one or both fan speeds were read successfully.
+* ``1`` — no readable fan source could be found.
+"""
+
+from __future__ import annotations
+
+import glob
+import os
+import struct
+import sys
+from typing import Dict, List, Optional, Tuple
+
+# EC debug interface path (ec_sys module must be loaded).
+_EC_IO_PATH = "/sys/kernel/debug/ec/ec0/io"
+
+#: Little-endian 16-bit tachometer period offsets inside the EC RAM.
+_EC_CPU_OFFSET = 0xD0
+_EC_GPU_OFFSET = 0xD2
+
+#: Raw tachometer period -> RPM conversion factor (see acer-ec driver).
+_RPM_FACTOR = 60_000_000
+
+
+# ------------------------------------------------------------------ #
+# EC raw-binary reader                                                #
+# ------------------------------------------------------------------ #
+
+def _read_ec_u16(offset: int) -> Optional[int]:
+    """Return a little-endian 16-bit unsigned integer from the EC or ``None``.
+
+    Parameters
+    ----------
+    offset : int
+        Byte offset within the EC register space.
+
+    Returns
+    -------
+    Optional[int]
+        Raw tachometer period or ``None`` when the read fails.
+    """
+    try:
+        with open(_EC_IO_PATH, "rb") as fh:
+            fh.seek(offset)
+            raw = fh.read(2)
+        if len(raw) == 2:
+            return struct.unpack("<H", raw)[0]
+    except OSError:
+        pass
+    return None
+
+
+def _raw_to_rpm(raw: Optional[int]) -> Optional[int]:
+    """Convert a raw EC tachometer period into real RPM.
+
+    Parameters
+    ----------
+    raw : Optional[int]
+        Raw period read from the EC (``None`` when the read failed).
+
+    Returns
+    -------
+    Optional[int]
+        RPM figure or ``None`` when ``raw`` is unusable.
+    """
+    if raw is None or raw == 0 or raw == 0xFFFF:
+        return None
+    return _RPM_FACTOR // raw
+
+
+# ------------------------------------------------------------------ #
+# hwmon / sysfs fallback reader                                        #
+# ------------------------------------------------------------------ #
+
+def _read_hwmon_fans() -> Dict[str, List[int]]:
+    """Scan hwmon fan*_input files and return a mapping of label → values.
+
+    Returns
+    -------
+    Dict[str, List[int]]
+        Keys are ``cpu`` and/or ``gpu``; values are lists of raw integer
+        readings found under the matching hwmon entries.
+    """
+    results: Dict[str, List[int]] = {"cpu": [], "gpu": []}
+
+    for path in sorted(glob.glob("/sys/class/hwmon/hwmon*/fan*_input")):
+        try:
+            with open(path, "r") as fh:
+                value = int(fh.read().strip())
+        except (OSError, ValueError):
+            continue
+
+        basename = os.path.basename(path)
+        parent = os.path.basename(os.path.dirname(path))
+        name_path = os.path.join(os.path.dirname(path), "name")
+        label = ""
+        try:
+            with open(name_path, "r") as nf:
+                label = nf.read().strip().lower()
+        except OSError:
+            pass
+
+        if "cpu" in label or "cpu" in basename.lower() or "cpu" in parent.lower():
+            results["cpu"].append(value)
+        elif "gpu" in label or "gpu" in basename.lower() or "gpu" in parent.lower():
+            results["gpu"].append(value)
+
+    return results
+
+
+# ------------------------------------------------------------------ #
+# Pretty printer                                                      #
+# ------------------------------------------------------------------ #
+
+def _print_fan(label: str, rpm: Optional[int], source: str) -> None:
+    """Print a single fan speed line.
+
+    Parameters
+    ----------
+    label : str
+        Human-readable fan name (e.g. ``"CPU fan"``).
+    rpm : Optional[int]
+        Raw RPM value or ``None``.
+    source : str
+        Source description used in the ``(via …)`` suffix.
+    """
+    if rpm is not None:
+        print(f"{label}: {rpm} RPM (via {source})")
+    else:
+        print(f"{label}: unavailable (via {source})")
+
+
+# ------------------------------------------------------------------ #
+# Main logic                                                           #
+# ------------------------------------------------------------------ #
+
+def main(argv: List[str]) -> int:
+    """CLI entry point.
+
+    Parameters
+    ----------
+    argv : List[str]
+        Full argument list including the program name.
+
+    Returns
+    -------
+    int
+        Process exit code.
+    """
+    if len(argv) > 1 and argv[1] in ("-h", "--help"):
+        print(__doc__)
+        return 0
+
+    cpu_rpm: Optional[int] = None
+    gpu_rpm: Optional[int] = None
+    source = ""
+
+    if os.path.exists(_EC_IO_PATH):
+        source = "EC"
+        cpu_rpm = _raw_to_rpm(_read_ec_u16(_EC_CPU_OFFSET))
+        gpu_rpm = _raw_to_rpm(_read_ec_u16(_EC_GPU_OFFSET))
+
+    if cpu_rpm is None and gpu_rpm is None:
+        source = "hwmon"
+        hwmon_data = _read_hwmon_fans()
+        if hwmon_data["cpu"]:
+            cpu_rpm = hwmon_data["cpu"][0]
+        if hwmon_data["gpu"]:
+            gpu_rpm = hwmon_data["gpu"][0]
+
+    if cpu_rpm is None and gpu_rpm is None:
+        print("error: no fan data available (load ec_sys or ensure sensors are installed).",
+              file=sys.stderr)
+        return 1
+
+    _print_fan("CPU fan", cpu_rpm, source)
+    _print_fan("GPU fan", gpu_rpm, source)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

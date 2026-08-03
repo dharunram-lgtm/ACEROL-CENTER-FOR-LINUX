@@ -1,13 +1,16 @@
 """Hardware telemetry collection.
 
-Gathers CPU temperature and NVIDIA GPU statistics for the hardware monitor
-page.  Everything here is **blocking** on purpose — it must only be invoked
-from worker threads (see :func:`modules.utils.run_async`).
+Gathers CPU temperature, fan speeds and NVIDIA GPU statistics for the
+hardware monitor page.  Everything here is **blocking** on purpose — it must
+only be invoked from worker threads (see :func:`modules.utils.run_async`).
 
 Data sources
 ------------
 * CPU temperature: ``sensors -j`` (lm-sensors) with a fallback to the kernel
   thermal zones under ``/sys/class/thermal``.
+* Fan: ``sensors``, ``/sys/class/hwmon/hwmon*/fan*_input`` and
+  ``nvidia-smi`` (GPU fan only).  When no fan data is available the service
+  returns ``None`` so the UI can show *"Fan data unavailable"*.
 * GPU: ``nvidia-smi --query-gpu=...``.  When ``nvidia-smi`` is missing or no
   NVIDIA GPU exists, :meth:`MonitorService.collect` returns GPU ``None`` so
   the UI can show *"No NVIDIA GPU detected"* instead of crashing.
@@ -21,6 +24,7 @@ from typing import Dict, List, Optional
 
 from config import NVIDIA_SMI_COMMAND, SENSORS_COMMAND
 from modules import utils
+from modules.fan import FanService
 from modules.utils import run_command
 
 logger = utils.get_logger(__name__)
@@ -49,6 +53,7 @@ class MonitorService:
 
     def __init__(self) -> None:
         self._thermal_cache: Optional[str] = None
+        self._fan_service = FanService()
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -60,12 +65,14 @@ class MonitorService:
         Returns
         -------
         Dict[str, Optional[dict]]
-            ``{"cpu": {...}, "gpu": {...}}``.  The GPU entry is ``None`` when
-            no NVIDIA GPU/driver is present.  CPU entry always contains at
-            least a ``"name"`` key.
+            ``{"cpu": {...}, "fan": {...}, "gpu": {...}}``.  The GPU entry is
+            ``None`` when no NVIDIA GPU/driver is present.  The fan entry is
+            ``None`` when no fan data could be read.  CPU entry always
+            contains at least a ``"name"`` key.
         """
         return {
             "cpu": self._collect_cpu(),
+            "fan": self._fan_service.collect(),
             "gpu": self._collect_gpu(),
         }
 

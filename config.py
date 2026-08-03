@@ -111,7 +111,16 @@ GPU_DEFAULT_MODE: str = "hybrid"
 
 NVIDIA_SMI_COMMAND: str = "nvidia-smi"
 SENSORS_COMMAND: str = "sensors"
+ALG_FAN_COMMAND: str = "alg-fan"
 DEFAULT_REFRESH_INTERVAL: int = 2
+
+#: Message shown on the fan card when no speed data could be read.
+FAN_UNAVAILABLE_MSG: str = (
+    "Fan data unavailable. The ALG fan is only readable through the embedded "
+    "controller. Load the EC module and install alg-fan:\n"
+    "sudo modprobe ec_sys write_support=1\n"
+    "sudo install -m 755 scripts/alg-fan /usr/local/bin/"
+)
 
 #: Temperature thresholds used to colour the readings.
 TEMP_GREEN_MAX: float = 60.0
